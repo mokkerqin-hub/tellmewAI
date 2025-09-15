@@ -1,0 +1,6 @@
+[theme]
+base="system"
+primaryColor="#008080"
+backgroundColor="#FFFFFF"
+secondaryBackgroundColor="#CFE3E2"
+textColor="#2F4F4F"

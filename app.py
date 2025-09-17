@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import streamlit.components.v1 as components
 from datetime import datetime
+import requests
 import os
-import requests  # moved to top
 
 # ================================
 # Load Model
@@ -136,6 +135,14 @@ if st.session_state.step == "intro":
         "Take a quick check-in to understand your well-being and explore supportive resources.</p>",
         unsafe_allow_html=True)
 
+    # Add disclaimer
+    st.markdown(
+        "<p style='text-align: center; color: #FF0000; font-weight: bold;'>"
+        "⚠️ Disclaimer: This tool is for educational and informational purposes only. "
+        "It is not a medical diagnostic tool and cannot replace professional mental health advice.</p>",
+        unsafe_allow_html=True
+    )
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.image("Tell Me WAI logo.png", width=300)
@@ -232,10 +239,20 @@ elif st.session_state.step == "result" and st.session_state.solution is None:
 # ================================
 elif st.session_state.solution == "chatbot":
     st.header("🤖 AI Consultant")
-    with open("embedBot.html", "r", encoding="utf-8") as f:
-        chatbot_html = f.read()
-    components.html(chatbot_html, height=700, scrolling=True)
 
+    # Full-width, non-scrollable iframe
+    st.components.v1.html(
+        f"""
+        <iframe src="https://mental-health-chatbot-2zpe.onrender.com/" 
+                width="100%" 
+                height="800" 
+                style="border:none;">
+        </iframe>
+        """,
+        height=820,  # give extra room for padding
+    )
+
+    # Navigation buttons
     col1, col2 = st.columns(2)
     with col1:
         if st.button("⬅ Back to Results"):
@@ -248,7 +265,7 @@ elif st.session_state.solution == "chatbot":
 # Step 4B: Music Therapy
 # ================================
 elif st.session_state.solution == "playlist":
-    st.header("🎵 AI-Curated Music Therapy")
+    st.header("🎵 Music Therapy")
     st.markdown(
         "<p class='subtitle'>Select how you're feeling right now and we'll recommend calming songs for you 💆‍♀️✨</p>",
         unsafe_allow_html=True
@@ -256,10 +273,10 @@ elif st.session_state.solution == "playlist":
 
     # Mood keywords for dynamic YouTube search
     mood_search_terms = {
+        "Stress": ["stress relief music", "nature sounds", "ambient calm music"],
         "Sad": ["uplifting music", "happy songs", "songs to feel better"],
         "Anxious": ["calm instrumental", "relaxing piano", "meditation music"],
-        "Low Energy": ["energetic songs playlist", "motivational music", "pop upbeat"],
-        "Stress": ["stress relief music", "nature sounds", "ambient calm music"]
+        "Low Energy": ["energetic songs playlist", "motivational music", "pop upbeat"]
     }
 
     # YouTube API key from secrets
@@ -279,7 +296,9 @@ elif st.session_state.solution == "playlist":
                 videos.append(f"https://www.youtube.com/watch?v={vid_id}")
         return videos
 
-    mood = st.selectbox("💙 How are you feeling?", list(mood_search_terms.keys()))
+    # Force "Stress" as first and default
+    mood_options = list(mood_search_terms.keys())
+    mood = st.selectbox("💙 How are you feeling?", mood_options, index=0)
 
     if mood:
         # initialize playlist_index for mood
@@ -356,3 +375,5 @@ elif st.session_state.solution == "teleconsult":
     with col2:
         if st.button("🏠 Back to Main Page"):
             back_to_mainpage()
+
+

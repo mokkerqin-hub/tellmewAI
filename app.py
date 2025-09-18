@@ -1,9 +1,10 @@
-import streamlit as st
-import pandas as pd
-import joblib
-from datetime import datetime
-import requests
 import os
+import requests
+import joblib
+import pandas as pd
+import streamlit as st
+from datetime import datetime
+import plotly.express as px
 
 # ================================
 # Load Model
@@ -11,6 +12,7 @@ import os
 model = joblib.load("suicide_risk_model.pkl")
 
 APPOINTMENTS_FILE = "Appointments.xlsx"
+USERS_FILE = "UserRecords.xlsx"
 
 # ================================
 # Custom Styling
@@ -18,10 +20,8 @@ APPOINTMENTS_FILE = "Appointments.xlsx"
 st.markdown(
     """
     <style>
-    /* Import Open Sans */
     @import url('https://fonts.googleapis.com/css2?family=Open+Sans&display=swap');
 
-    /* General app */
     .stApp {
         background-color: var(--background-color);
         color: var(--text-color);
@@ -34,7 +34,7 @@ st.markdown(
     }
 
     h1, h2, h3, h4 {
-        color: #008080 !important;   /* Teal */
+        color: #008080 !important;
         font-weight: 700;
     }
 
@@ -45,33 +45,31 @@ st.markdown(
         font-size: 16px;
     }
 
-    /* Buttons */
-    .stButton>button {
-        background-color: #008080;   /* Teal */
-        color: #FFFFFF;              /* White text */
+    .stButton > button {
+        background-color: #008080;
+        color: #FFFFFF;
         border-radius: 10px;
         border: none;
         font-weight: bold;
         padding: 0.5em 1em;
         margin: 0.3em;
         width: 100%;
-        transition: background-color 0.3s, transform 0.1s;
     }
 
-    .stButton>button:hover {
-        background-color: #006666;   /* Darker teal */
+    .stButton > button:hover {
+        background-color: #006666;
         color: #FFFFFF;
         transform: scale(1.02);
         cursor: pointer;
     }
 
-    /* Step tracker */
     .step-tracker {
         color: #008080;              
         text-align: center;
         font-size: 18px;
         margin-bottom: 20px;
     }
+
     .current-step {
         font-weight: bold;
         color: #008080;
@@ -84,18 +82,20 @@ st.markdown(
 # ================================
 # Session State Initialization
 # ================================
-if "step" not in st.session_state:
-    st.session_state.step = "intro"
-if "risk" not in st.session_state:
-    st.session_state.risk = None
-if "solution" not in st.session_state:
-    st.session_state.solution = None
-if "appointments" not in st.session_state:
-    st.session_state.appointments = []
-if "playlist_index" not in st.session_state:
-    st.session_state.playlist_index = {}
+for key, default in {
+    "step": "intro",
+    "risk": None,
+    "solution": None,
+    "appointments": [],
+    "playlist_index": {},
+    "dashboard_auth": False
+}.items():
+    if key not in st.session_state:
+        st.session_state[key] = default
 
-# ---------------- Helpers ----------------
+# ================================
+# Helper Functions
+# ================================
 def back_to_result():
     st.session_state.solution = None
     st.session_state.step = "result"
@@ -111,14 +111,16 @@ def back_to_mainpage():
 def show_step_tracker():
     steps = ["1️⃣ Introduction", "2️⃣ Assessment", "3️⃣ Result"]
     current = st.session_state.step
-    step_display = ""
+    display = ""
+
     for i, step_name in enumerate(steps):
         if (current == "intro" and i == 0) or (current == "predictor" and i == 1) or (current == "result" and i == 2):
-            step_display += f"<span class='current-step'>{step_name}</span> → "
+            display += f"<span class='current-step'>{step_name}</span> → "
         else:
-            step_display += f"{step_name} → "
+            display += f"{step_name} → "
+
     st.markdown(
-        f"<p class='step-tracker'>{step_display.rstrip(' → ')}</p>",
+        f"<p class='step-tracker'>{display.rstrip(' → ')}</p>",
         unsafe_allow_html=True
     )
 
@@ -130,16 +132,28 @@ if st.session_state.step == "intro":
     st.markdown(
         "<h2 style='text-align: center; color: #008080;'>Tell Me WAI: Your Personal AI Mental Wellness Companion</h2>",
         unsafe_allow_html=True)
+
+    # Introductory description
     st.markdown(
-        "<p class='subtitle'>Invest in your mental health today. "
-        "Take a quick check-in to understand your well-being and explore supportive resources.</p>",
-        unsafe_allow_html=True)
+        """
+        <div style='text-align: justify; font-size: 14px; color: #008080; font-style: italic;'>
+        <b>Tell Me WAI</b> is a personalized AI-powered mental wellness companion 
+        designed to help students and individuals reflect on their emotional well-being. 
+        It provides a quick <b>screening</b> based on lifestyle and mental health indicators, 
+        and connects users to supportive resources such as music therapy, AI consultation, 
+        and teleconsultation with professionals.  
+        <br><br>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     # Add disclaimer
     st.markdown(
         "<p style='text-align: center; color: #FF0000; font-weight: bold;'>"
         "⚠️ Disclaimer: This tool is for educational and informational purposes only. "
-        "It is not a medical diagnostic tool and cannot replace professional mental health advice.</p>",
+        "It is not a medical diagnostic tool and cannot replace professional mental health advice.</p>"
+        "</div>",
         unsafe_allow_html=True
     )
 
@@ -151,13 +165,10 @@ if st.session_state.step == "intro":
         st.session_state.step = "predictor"
 
     if st.button("📋 View My Appointments"):
-        if st.session_state.appointments:
-            st.subheader("Your Appointments")
-            df = pd.DataFrame(st.session_state.appointments)
-            df.index = df.index + 1
-            st.table(df)
-        else:
-            st.info("No appointments booked yet.")
+        st.session_state.step = "appointments"
+
+    if st.button("📊 Staff Dashboard"):
+        st.session_state.step = "dashboard"
 
 # ================================
 # Step 2: Predictor Page
@@ -207,6 +218,19 @@ elif st.session_state.step == "predictor":
         risk_map = {0: "Low", 1: "Medium", 2: "High"}
         st.session_state.risk = risk_map[prediction]
         st.session_state.step = "result"
+
+        # Save user input & result to Excel
+        record = input_data.copy()
+        record["Predicted_Risk"] = st.session_state.risk
+        record["Timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if os.path.exists(USERS_FILE):
+            existing_users = pd.read_excel(USERS_FILE)
+            updated_users = pd.concat([existing_users, record], ignore_index=True)
+        else:
+            updated_users = record
+
+        updated_users.to_excel(USERS_FILE, index=False)
 
 # ================================
 # Step 3: Result Page
@@ -344,13 +368,20 @@ elif st.session_state.solution == "teleconsult":
                 unsafe_allow_html=True)
 
     name = st.text_input("Your Name")
+    contact_number = st.text_input("Your Contact Number")
     email = st.text_input("Email Address")
     date = st.date_input("Preferred Date", min_value=datetime.today())
     time = st.time_input("Preferred Time")
 
     if st.button("Book Appointment"):
         if name and email:
-            appointment = {"Name": name, "Email": email, "Date": str(date), "Time": str(time)}
+            appointment = {
+                "Name": name,
+                "Contact Number": contact_number,
+                "Email": email,
+                "Date": str(date),
+                "Time": str(time)
+            }
 
             # Save in session state
             st.session_state.appointments.append(appointment)
@@ -364,7 +395,12 @@ elif st.session_state.solution == "teleconsult":
                 updated = new_booking
 
             updated.to_excel(APPOINTMENTS_FILE, index=False)
-            st.success(f"✅ Appointment booked successfully for {name} on {date} at {time}. Confirmation will be sent to {email}.")
+
+            # Success message with WhatsApp reconfirmation note
+            st.success(
+                f"✅ Appointment booked successfully for {name} on {date} at {time}. "
+                f"You will also be notified via WhatsApp for reconfirmation 📲."
+            )
         else:
             st.warning("⚠ Please fill in your name and email before booking.")
 
@@ -375,5 +411,143 @@ elif st.session_state.solution == "teleconsult":
     with col2:
         if st.button("🏠 Back to Main Page"):
             back_to_mainpage()
+
+# ================================
+# Step 5: View My Appointments (Users)
+# ================================
+elif st.session_state.step == "appointments":
+    st.header("📅 My Appointments")
+
+    user_name = st.text_input("Enter your Name (as used during booking):")
+
+    if user_name:
+        if os.path.exists(APPOINTMENTS_FILE):
+            df_appointments = pd.read_excel(APPOINTMENTS_FILE)
+
+            if "Name" in df_appointments.columns:
+                # Exact name match (case-insensitive)
+                user_appointments = df_appointments[
+                    df_appointments["Name"].str.lower() == user_name.lower()
+                ]
+            else:
+                user_appointments = pd.DataFrame()
+
+            if user_appointments.empty:
+                st.warning("❌ No appointments found under this name.")
+            else:
+                st.subheader("📋 Your Appointment(s)")
+                user_appointments.index = user_appointments.index + 1
+                st.dataframe(user_appointments, use_container_width=True)
+        else:
+            st.info("No appointments have been booked yet.")
+    else:
+        st.info("Please enter your Name to check your appointments.")
+
+    if st.button("⬅ Back to Main Page"):
+        back_to_mainpage()
+
+# ===============================
+# 📊 Staff Dashboard
+# ===============================
+elif st.session_state.step == "dashboard":
+    st.header("📊 Staff Dashboard")
+
+    # Password protection
+    password = st.text_input("Enter Staff Password:", type="password")
+    if password == "tellmewai":
+
+        # User Records
+        st.subheader("📋 User Records")
+        if os.path.exists(USERS_FILE):
+            df = pd.read_excel(USERS_FILE)
+
+            # Convert categorical 0/1 values into readable labels
+            if "Gender" in df.columns:
+                df["Gender"] = df["Gender"].replace({0: "Male", 1: "Female"})
+            if "Depression" in df.columns:
+                df["Depression"] = df["Depression"].replace({0: "No", 1: "Yes"})
+            if "Suicidal_Thoughts" in df.columns:
+                df["Suicidal_Thoughts"] = df["Suicidal_Thoughts"].replace({0: "No", 1: "Yes"})
+            if "Family_History_of_Mental_Illness" in df.columns:
+                df["Family_History_of_Mental_Illness"] = df["Family_History_of_Mental_Illness"].replace({0: "No", 1: "Yes"})
+
+            # Reset index to start from 1
+            df.index = df.index + 1
+            st.dataframe(df, use_container_width=True)
+
+            st.markdown("---")
+            st.subheader("📊 Insights")
+
+            # Suicide Risk Distribution
+            risk_counts = df["Predicted_Risk"].value_counts()
+            fig_risk = px.bar(
+                risk_counts,
+                x=risk_counts.index,
+                y=risk_counts.values,
+                title="Suicide Risk Distribution",
+                labels={"x": "Risk Level", "y": "Count"},
+                color=risk_counts.index,
+                color_discrete_map={"Low": "green", "Medium": "orange", "High": "red"}
+            )
+            st.plotly_chart(fig_risk, use_container_width=True)
+
+            # Gender Distribution (Pie)
+            gender_counts = df["Gender"].value_counts()
+            fig_gender = px.pie(
+                names=gender_counts.index,
+                values=gender_counts.values,
+                title="Gender Distribution",
+                color=gender_counts.index,
+                color_discrete_map={"Male": "blue", "Female": "pink"}
+            )
+
+            # Academic Pressure (Stacked Bar by Risk Level)
+            pressure_risk = df.groupby(["Academic_Pressure", "Predicted_Risk"]).size().reset_index(name="Count")
+            fig_pressure = px.bar(
+                pressure_risk,
+                x="Academic_Pressure",
+                y="Count",
+                color="Predicted_Risk",
+                title="Academic Pressure by Risk Level",
+                barmode="stack",
+                color_discrete_map={"Low": "green", "Medium": "orange", "High": "red"}
+            )
+
+            col1, col2 = st.columns(2)
+            col1.plotly_chart(fig_gender, use_container_width=True)
+            col2.plotly_chart(fig_pressure, use_container_width=True)
+
+            # Depression
+            depression_counts = df["Depression"].value_counts()
+            fig_depression = px.bar(
+                x=depression_counts.index,
+                y=depression_counts.values,
+                title="Depression Distribution",
+                labels={"x": "Depression", "y": "Count"},
+                color=depression_counts.index,
+                color_discrete_map={"No": "blue", "Yes": "red"}
+            )
+
+            # Suicidal Thoughts
+            suicide_counts = df["Suicidal_Thoughts"].value_counts()
+            fig_suicide = px.bar(
+                x=suicide_counts.index,
+                y=suicide_counts.values,
+                title="Suicidal Thoughts Distribution",
+                labels={"x": "Suicidal Thoughts", "y": "Count"},
+                color=suicide_counts.index,
+                color_discrete_map={"No": "blue", "Yes": "red"}
+            )
+
+            col3, col4 = st.columns(2)
+            col3.plotly_chart(fig_depression, use_container_width=True)
+            col4.plotly_chart(fig_suicide, use_container_width=True)
+
+    else:
+        st.warning("Staff access only. Please enter the correct password.")
+
+    if st.button("⬅ Back to Main Page"):
+        back_to_mainpage()
+
 
 

@@ -13,7 +13,5 @@ requests==2.31.0
 # ==========================
 plotly==5.15.0
 
-# ==========================
-# Supabase
-# ==========================
-supabase-py==1.0.0  # or the latest version compatible with create_client
+
+

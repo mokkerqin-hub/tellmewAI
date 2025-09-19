@@ -4,6 +4,10 @@ matplotlib==3.7.2
 pydeck==0.9.1
 plotly==5.15.0
 seaborn==0.12.2
+contourpy==1.0.7
+cycler==0.11.0
+fonttools==4.43.0
+kiwisolver==1.4.4
 
 # Data handling
 pandas==2.1.1
@@ -12,53 +16,49 @@ scipy==1.10.1
 scikit-learn==1.2.2
 pyarrow==10.0.1
 openpyxl==3.1.2
+joblib==1.2.0
+packaging==23.1
+python-dateutil==2.8.2
+pytz==2023.3
+tzdata==2023.3
+six==1.16.0
+pyparsing==3.0.9
 
 # Web & API
 streamlit==1.24.1
 flask==2.3.3
 requests==2.31.0
 supabase-py==2.3.4
-
-# Utilities
-python-dateutil==2.8.2
-pytz==2023.3
-tzdata==2023.3
-joblib==1.2.0
-packaging==23.1
-attrs==22.2.0
-blinker==1.6.2
-cachetools==6.2.0
 click==8.1.3
-colorama==0.4.6
-contourpy==1.0.7
-cycler==0.11.0
-fonttools==4.43.0
+Jinja2==3.1.2
+MarkupSafe==2.1.3
+tornado==6.2
+blinker==1.6.2
+watchdog==3.0.0
+
+# Git & version control
 gitdb==4.0.10
 GitPython==3.1.31
-idna==3.4
-Jinja2==3.1.2
-jsonschema==4.17.3
-kiwisolver==1.4.4
-MarkupSafe==2.1.3
-narwhals==2.3.0
-protobuf==3.20.3
-pyparsing==3.0.9
-referencing==0.36.2
-rpds-py==0.27.1
-six==1.16.0
-tenacity==8.2.2
-threadpoolctl==3.1.0
-toml==0.10.2
-tornado==6.2
-typing_extensions==4.6.3
-urllib3==2.0.4
-watchdog==3.0.0
+
+# Utilities
+attrs==22.2.0
 rich==14.1.0
 markdown-it-py==4.0.0
 mdurl==0.1.2
 pygments==2.19.2
+threadpoolctl==3.1.0
+tenacity==8.2.2
+toml==0.10.2
+colorama==0.4.6
 
 # OpenAI
 openai==1.62.0
 
-
+# Misc / optional
+narwhals==2.3.0
+referencing==0.36.2
+rpds-py==0.27.1
+typing_extensions==4.6.3
+idna==3.4
+jsonschema==4.17.3
+protobuf==3.20.3

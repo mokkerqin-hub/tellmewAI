@@ -5,6 +5,7 @@ import streamlit as st
 from datetime import datetime
 import plotly.express as px
 from supabase import create_client
+import pytz
 
 # ================================
 # Load Model
@@ -18,6 +19,53 @@ url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 
 supabase = create_client(url, key)
+
+import requests
+import json
+
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+SUPABASE_HEADERS = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json"
+}
+
+def insert_user_record(record):
+    url = f"{SUPABASE_URL}/rest/v1/user_records"
+    response = requests.post(url, headers=SUPABASE_HEADERS, data=json.dumps(record))
+    if response.status_code not in [200, 201]:
+        st.error(f"Error saving record: {response.text}")
+    else:
+        st.success("✅ Your assessment has been saved successfully!")
+
+def insert_appointment(record):
+    url = f"{SUPABASE_URL}/rest/v1/appointments"
+    response = requests.post(url, headers=SUPABASE_HEADERS, data=json.dumps(record))
+    if response.status_code not in [200, 201]:
+        st.error(f"Error booking appointment: {response.text}")
+    else:
+        st.success("✅ Appointment booked successfully!")
+
+def fetch_user_records():
+    url = f"{SUPABASE_URL}/rest/v1/user_records?select=*"
+    response = requests.get(url, headers=SUPABASE_HEADERS)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        st.error(f"Error fetching data: {response.text}")
+        return []
+
+def fetch_appointments(name=None):
+    url = f"{SUPABASE_URL}/rest/v1/appointments?select=*"
+    if name:
+        url += f"&name=eq.{name}"
+    response = requests.get(url, headers=SUPABASE_HEADERS)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        st.error(f"Error fetching appointments: {response.text}")
+        return []
 
 # ================================
 # Custom Styling
@@ -241,12 +289,7 @@ elif st.session_state.step == "predictor":
             "timestamp": datetime.now().isoformat()
         }
 
-        # 3️⃣ Insert into Supabase (all values are now JSON-serializable)
-        try:
-            supabase.table("user_records").insert([record]).execute()
-            st.success("✅ Your assessment has been saved successfully!")
-        except Exception as e:
-            st.error(f"Error saving record: {e}")
+        insert_user_record(record)
 
 # ================================
 # Step 3: Result Page
@@ -373,6 +416,8 @@ elif st.session_state.solution == "playlist":
 # ================================
 elif st.session_state.solution == "teleconsult":
     st.header("📅 Book a Teleconsultation")
+
+    # Input fields
     name = st.text_input("Your Name")
     contact_number = st.text_input("Your Contact Number")
     email = st.text_input("Email Address")
@@ -381,23 +426,17 @@ elif st.session_state.solution == "teleconsult":
 
     if st.button("Book Appointment"):
         if name and email:
-            # Keep uppercase variables for Python readability
-            APPOINTMENT = {
-                "Name": name,
-                "Contact_Number": contact_number,
-                "Email": email,
-                "Date": str(date),
-                "Time": str(time),
-                "Reason": "Teleconsultation"
-            }
+            malaysia_tz = pytz.timezone("Asia/Kuala_Lumpur")
+            timestamp_malaysia = datetime.now(malaysia_tz).strftime("%Y-%m-%d %H:%M:%S")
 
-            # Map to lowercase Supabase columns
+            # Prepare record for Supabase
             appointment_record = {
-                "name": APPOINTMENT["Name"],
-                "contact_number": APPOINTMENT["Contact_Number"],
-                "email": APPOINTMENT["Email"],
-                "date": APPOINTMENT["Date"],
-                "time": APPOINTMENT["Time"],
+                "name": name,
+                "contact_number": contact_number,
+                "email": email,
+                "date": str(date),
+                "time": str(time),
+                "timestamp": timestamp_malaysia
             }
 
             # Insert into Supabase
@@ -433,17 +472,10 @@ elif st.session_state.step == "appointments":
                 else:
                     st.subheader("📋 Your Appointment(s)")
 
-                    # Drop 'id' column if exists
-                    if "id" in df_appointments.columns:
-                        df_appointments = df_appointments.drop(columns=["id"])
-
-                    # Format timestamp to Malaysia time
-                    if "timestamp" in df_appointments.columns:
-                        import pytz
-                        malaysia_tz = pytz.timezone("Asia/Kuala_Lumpur")
-                        df_appointments["timestamp"] = pd.to_datetime(df_appointments["timestamp"]) \
-                            .dt.tz_convert(malaysia_tz) \
-                            .dt.strftime("%Y-%m-%d %H:%M:%S")
+                    # Drop 'id' and 'timestamp' columns if they exist
+                    for col in ["id", "timestamp"]:
+                        if col in df_appointments.columns:
+                            df_appointments = df_appointments.drop(columns=[col])
 
                     # Reset index starting from 1
                     df_appointments.index = df_appointments.index + 1
@@ -455,7 +487,6 @@ elif st.session_state.step == "appointments":
 
     if st.button("⬅ Back to Main Page"):
         back_to_mainpage()
-
 
 # ================================
 # 📊 Staff Dashboard
@@ -479,8 +510,8 @@ elif st.session_state.step == "dashboard":
     else:
         # Fetch user records from Supabase
         try:
-            response = supabase.table("user_records").select("*").execute()
-            df = pd.DataFrame(response.data or [])
+            data = fetch_user_records()
+            df = pd.DataFrame(data or [])
 
             if df.empty:
                 st.warning("No user records found.")

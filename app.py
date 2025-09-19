@@ -1,4 +1,3 @@
-import os
 import requests
 import joblib
 import pandas as pd
@@ -6,7 +5,6 @@ import streamlit as st
 from datetime import datetime
 import plotly.express as px
 from supabase import create_client
-import pytz
 
 # ================================
 # Load Model
@@ -573,7 +571,6 @@ elif st.session_state.step == "dashboard":
 
     if st.button("⬅ Logout"):
         back_to_mainpage()
-
 
 
 

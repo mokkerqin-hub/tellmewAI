@@ -1,10 +1,10 @@
-import requests
 import joblib
 import pandas as pd
 import streamlit as st
+import requests
+import json
 from datetime import datetime
 import plotly.express as px
-from supabase import create_client
 import pytz
 
 # ================================
@@ -15,13 +15,6 @@ model = joblib.load("suicide_risk_model.pkl")
 # ================================
 # Supabase Setup
 # ================================
-url = st.secrets["SUPABASE_URL"]
-key = st.secrets["SUPABASE_KEY"]
-
-supabase = create_client(url, key)
-
-import requests
-import json
 
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
@@ -441,8 +434,12 @@ elif st.session_state.solution == "teleconsult":
 
             # Insert into Supabase
             try:
-                supabase.table("appointments").insert(appointment_record).execute()
-                st.success(f"✅ Appointment booked for {name} on {date} at {time}. "
+                url = f"{SUPABASE_URL}/rest/v1/appointments"
+                response = requests.post(url, headers=SUPABASE_HEADERS, data=json.dumps(appointment_record))
+                if response.status_code not in [200, 201]:
+                    st.error(f"Error booking appointment: {response.text}")
+                else:
+                    st.success(f"✅ Appointment booked for {name} on {date} at {time}. "
                            f"You will also be notified via WhatsApp for reconfirmation 📲.")
             except Exception as e:
                 st.error(f"Error booking appointment: {e}")
@@ -463,9 +460,9 @@ elif st.session_state.step == "appointments":
             st.warning("⚠️ Please enter your name before checking.")
         else:
             try:
-                # Query Supabase for appointments of this user
-                response = supabase.table("appointments").select("*").eq("name", user_name).execute()
-                df_appointments = pd.DataFrame(response.data or [])
+                url = f"{SUPABASE_URL}/rest/v1/appointments?select=*&name=eq.{user_name}"
+                response = requests.get(url, headers=SUPABASE_HEADERS)
+                df_appointments = pd.DataFrame(response.json() or [])
 
                 if df_appointments.empty:
                     st.warning("❌ No appointments found under this name.")
@@ -491,20 +488,18 @@ elif st.session_state.step == "appointments":
 # ================================
 # 📊 Staff Dashboard
 # ================================
+# ================================
+# 📊 Staff Dashboard
+# ================================
 elif st.session_state.step == "dashboard":
     st.header("📊 Staff Dashboard")
 
-    # Initialize login state
-    if "dashboard_logged_in" not in st.session_state:
-        st.session_state.dashboard_logged_in = False
-
-    # Login form
-    if not st.session_state.dashboard_logged_in:
+    # Always show login form first
+    if "dashboard_logged_in" not in st.session_state or st.session_state.dashboard_logged_in is False:
         password = st.text_input("Enter Staff Password:", type="password")
         if st.button("Login"):
             if password == "tellmewai":
                 st.session_state.dashboard_logged_in = True
-                st.success("✅ Logged in successfully!")
             else:
                 st.error("❌ Incorrect password")
     else:

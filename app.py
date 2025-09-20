@@ -309,17 +309,18 @@ elif st.session_state.step == "result" and st.session_state.solution is None:
 elif st.session_state.solution == "chatbot":
     st.header("🤖 AI Consultant")
 
-    # Full-width, non-scrollable iframe
-    st.components.v1.html(
-        f"""
-        <iframe src="https://mental-health-chatbot-2zpe.onrender.com/" 
-                width="100%" 
-                height="800" 
-                style="border:none;">
-        </iframe>
+    st.markdown(
+        """
+        <a href="https://mental-health-chatbot-2zpe.onrender.com/" target="_blank">
+            <button style="padding:10px 20px; font-size:16px; border-radius:8px; background:#008080; color:white; border:none;">
+                🚀 Open AI Consultant Chatbot
+            </button>
+        </a>
         """,
-        height=820,  # give extra room for padding
+        unsafe_allow_html=True
     )
+
+    st.markdown("###")  # creates vertical space
 
     # Navigation buttons
     col1, col2 = st.columns(2)
@@ -488,9 +489,6 @@ elif st.session_state.step == "appointments":
 # ================================
 # 📊 Staff Dashboard
 # ================================
-# ================================
-# 📊 Staff Dashboard
-# ================================
 elif st.session_state.step == "dashboard":
     st.header("📊 Staff Dashboard")
 
@@ -597,7 +595,6 @@ elif st.session_state.step == "dashboard":
 
     if st.button("⬅ Logout"):
         back_to_mainpage()
-
 
 
 
